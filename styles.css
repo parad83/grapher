@@ -1,0 +1,64 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: monospace;
+}
+
+.simulation-window {
+    border: 1px solid black;
+    position: relative;
+    overflow: hidden;
+}
+
+.axis {
+    position: absolute;
+    background-color: black;
+    opacity: 0.3;
+}
+
+.x-axis {
+    height: 1px;
+    width: 100%;
+}
+
+.y-axis {
+    height: 100%;
+    width: 1px;
+}
+
+.axis-interval {
+    position: absolute;
+    background-color: black;
+}
+
+.x-axis .axis-interval {
+    height: 8px;
+    width: 1px;
+}
+
+.y-axis .axis-interval {
+    height: 1px;
+    width: 8px;
+}
+
+.axis-interval-label {
+    position: absolute;
+    font-size: 8px;
+    /* left: 10px; */
+    /* top: -5px */
+}
+
+.axis-0 {
+    position: absolute;
+    background-color: black;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    opacity: 0.5;
+}
+
+.axis-0:hover {
+    opacity: 1;
+    cursor: pointer;
+}
