@@ -45,8 +45,16 @@
 .axis-interval-label {
     position: absolute;
     font-size: 8px;
-    /* left: 10px; */
-    /* top: -5px */
+}
+
+.x-axis .axis-interval-label {
+    left: -5px;
+    top: 10px;
+}
+
+.y-axis .axis-interval-label {
+    left: 10px;
+    top: -5px;
 }
 
 .axis-0 {
