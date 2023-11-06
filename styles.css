@@ -3,18 +3,35 @@
     padding: 0;
     box-sizing: border-box;
     font-family: monospace;
+    font-size: 15px;
 }
 
-.simulation-window {
+*:hover {
+    z-index: 3;
+}
+
+#root {
+    display: flex;
+    align-items: stretch;
+    flex-wrap: wrap;
+    align-items: start;
+}
+
+.grapher-window {
     border: 1px solid black;
     position: relative;
     overflow: hidden;
+    margin: 1em
 }
 
 .axis {
     position: absolute;
     background-color: black;
     opacity: 0.3;
+}
+
+.axis:hover {
+    opacity: 1;
 }
 
 .x-axis {
@@ -42,17 +59,17 @@
     width: 8px;
 }
 
-.axis-interval-label {
+
+.x-axis-interval-label {
     position: absolute;
     font-size: 8px;
-}
-
-.x-axis .axis-interval-label {
     left: -5px;
     top: 10px;
 }
 
-.y-axis .axis-interval-label {
+.y-axis-interval-label {
+    position: absolute;
+    font-size: 8px;
     left: 10px;
     top: -5px;
 }
@@ -69,4 +86,133 @@
 .axis-0:hover {
     opacity: 1;
     cursor: pointer;
+}
+
+.grapher-menu {
+    position: absolute;
+    right: 0;
+    top: 0;
+    background: white;
+    z-index: 5;
+}
+
+
+.grapher-menu>svg {
+    border: 1px solid black;
+    width: 2em;
+    height: 2em;
+    cursor: pointer;
+    display: flex;
+    background-color: white;
+    box-sizing: border-box;
+}
+
+.grapher-menu>svg:hover {
+    filter: invert(100%);
+
+}
+
+.active {
+    filter: invert(100%);
+}
+
+.menu-window {
+    border: 1px solid black;
+    background-color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    margin-top: 1em;
+    margin-right: 1em;
+    padding: 0.5em;
+    margin-left: 1em;
+}
+
+.menu-heading {
+    /* padding: 0.5em 0; */
+    border-bottom: 1px solid black;
+    display: flex;
+    justify-content: space-between;
+    flex-direction: row;
+    margin-bottom: 1em;
+}
+
+.menu-heading>div {
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+.close-menu-window:hover {
+    cursor: pointer;
+}
+
+.object {
+    position: absolute;
+    border-radius: 50%;
+    z-index: 2;
+}
+
+.object:hover {
+    cursor: pointer;
+    outline: 2px solid black;
+
+}
+
+.objects-list {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 1em;
+}
+
+.objects-list-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5em;
+}
+
+.objects-list-item:last-child {
+    align-items: end;
+}
+
+input[type="color"].custom {
+    height: 15px;
+    width: 100%;
+}
+
+input[type="number"].custom {
+    height: 15px;
+    border: 0;
+    width: 50%;
+    outline: 0;
+    border-bottom: 1px solid black;
+}
+
+input[type="color"] {
+    border: none;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+    border: none;
+}
+
+input[type="color"]::-moz-color-swatch {
+    border: none;
+}
+
+input[type="color"]::-moz-color-swatch-wrapper {
+    border: none;
+}
+
+.intercept {
+    position: absolute;
+    height: 5px;
+    width: 5px;
+    border-radius: 50%;
+    background-color: black;
+    font-size: 8px;
 }

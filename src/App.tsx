@@ -2,12 +2,12 @@ import { useState } from "react";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "../styles.css";
-import Simulation from "./components/Simulation";
+import Grapher from "./components/Grapher";
 
 function App() {
   return (
     <>
-      <Simulation />
+      <Grapher />
     </>
   );
 }
