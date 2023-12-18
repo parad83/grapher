@@ -1,29 +1,73 @@
 import React, { useState } from "react";
+import MenuWindow from "./MenuWindow";
+
+type Operator = "+" | "-" | "*" | "/";
+
+const stringToOperator = {
+  "+": function (x: number, y: number) {
+    return x + y;
+  },
+  "-": function (x: number, y: number) {
+    return x - y;
+  },
+  "*": function (x: number, y: number) {
+    return x * y;
+  },
+  "/": function (x: number, y: number) {
+    return x / y;
+  },
+  "^": function (x: number, y: number) {
+    return x ** y;
+  },
+};
+
+interface Point {
+  id: number;
+  positions: { x: number; y: number };
+  styles: {
+    backgroundColor: string;
+    width: number;
+    height: number;
+  };
+}
+
+interface Line {
+  id: number;
+  positions: { x: number; y: number };
+  styles: {
+    backgroundColor: string;
+    width: string;
+    height: number;
+    transform: string;
+  };
+}
 
 const Grapher = () => {
   const windowSize = { width: 800, height: 800 };
 
-  const [clickedObject, setClickedObject] = useState(0);
-  const [objectsWidth, setObjectsWidth] = useState(6);
-  const [objectsColor, setObjectsColor] = useState("#FF0000");
-  const [objects, setObjects] = useState([
-    {
-      id: 1,
-      positions: { x: 0, y: 0 },
-      styles: {
-        backgroundColor: objectsColor,
-        width: objectsWidth,
-        height: objectsWidth,
-      },
-    },
-  ]);
-  const [objectsCounter, setObjectsCounter] = useState(2);
+  const [isEquationMenuOpen, setIsEquationMenuOpen] = useState(false);
+  const [equation, setEquation] = useState("");
+
+  const [isAddingObject, setIsAddingObject] = useState(false);
+  const [addingObjectPos, setAddingObjectPos] = useState({ x: 0, y: 0 });
+
+  const [clickedObject, setClickedObject] = useState({ x: 0, y: 0 });
+  let hasClickedObject = clickedObject.x !== 0 && clickedObject.y !== 0;
+
+  const [pointsWidth, setPointsWidth] = useState(6);
+  const [pointsColor, setPointsColor] = useState("#FF0000");
+  const [pointsArray, setPointsArray] = useState<Point[]>([]);
+  const [pointsCounter, setPointsCounter] = useState(1);
+
+  const [linesArray, setLinesArray] = useState<Line[]>([]);
+  const [linesCounter, setLinesCounter] = useState(1);
+  const [linesColor, setLinesColor] = useState("#FF0000");
 
   const [scale, setScale] = useState(1);
   const [isMove, setIsMove] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const [isObjectsMenuOpen, setIsObjectsMenuOpen] = useState(false);
+  const [isPointsMenuOpen, setIsPointsMenuOpen] = useState(false);
   const [isAxisSettingsMenuOpen, setIsAxisSettingsMenuOpen] = useState(false);
 
   const defaultCoSystem = { x: windowSize.width / 2, y: windowSize.height / 2 };
@@ -41,19 +85,46 @@ const Grapher = () => {
     intervalsArray[axisIntervals - i] = interval * (axisIntervals - i);
   }
 
+  // for different point so they have different colors :)
+  const colors = [
+    "#FF0000",
+    "#00FF00",
+    "#0000FF",
+    "#FFFF00",
+    "#FF00FF",
+    "#00FFFF",
+    "#800000",
+    "#008000",
+    "#000080",
+    "#808000",
+  ];
+
   const handleAxisIntervals = (event) => {
     setAxisIntervals(Number(event.target.value));
   };
 
   const handleMouseDown = (event) => {
-    setIsDragging(true);
-    setDragInitPos({ x: event.clientX, y: event.clientY });
+    if (isAddingObject) {
+      addObject(
+        addingObjectPos.x - coordinateSystem.x,
+        windowSize.height - addingObjectPos.y - coordinateSystem.y
+      );
+      setIsAddingObject(false);
+    }
+    if (isMove) {
+      setIsDragging(true);
+      setDragInitPos({
+        x: event.clientX,
+        y: windowSize.height - event.clientY,
+      });
+    }
   };
 
   const handleMouseMove = (event) => {
+    console.log(isAddingObject);
     if (isDragging) {
       const x = event.clientX;
-      const y = event.clientY;
+      const y = windowSize.height - event.clientY;
 
       const offsetX = dragInitPos.x - x;
       const offsetY = dragInitPos.y - y;
@@ -61,6 +132,9 @@ const Grapher = () => {
         x: coordinateSystem.x - offsetX * 0.2,
         y: coordinateSystem.y - offsetY * 0.2,
       });
+    } else if (isAddingObject) {
+      // hardcoded value for 1em lol (because of the margin that i set for the div lmao)
+      setAddingObjectPos({ x: event.clientX - 16, y: event.clientY - 16 });
     }
   };
 
@@ -79,12 +153,12 @@ const Grapher = () => {
   };
 
   const handleZoomIn = () => {
-    setScale(scale * 1.1);
+    setScale(scale * 0.5); // doesnt work yet
     setIsMove(false);
   };
 
   const handleZoomOut = () => {
-    setScale(scale / 1.1);
+    setScale(scale * 2); // doesnt work yet
     setIsMove(false);
   };
 
@@ -94,10 +168,10 @@ const Grapher = () => {
     setIsMove(false);
   };
 
-  const handleObjectsColor = (id, event) => {
-    setObjectsColor(event.target.value);
-    setObjects((prevObjects) =>
-      prevObjects.map((object) =>
+  const handlePointsColor = (id, event) => {
+    setPointsColor(event.target.value);
+    setPointsArray((prevPoints) =>
+      prevPoints.map((object) =>
         object.id === id
           ? {
               ...object,
@@ -108,11 +182,11 @@ const Grapher = () => {
     );
   };
 
-  const handleObjectsWidth = (id, event) => {
+  const handlePointsWidth = (id, event) => {
     const newWidth = Number(event.target.value);
-    setObjectsWidth(newWidth);
-    setObjects((prevObjects) =>
-      prevObjects.map((object) =>
+    setPointsWidth(newWidth);
+    setPointsArray((prevPoints) =>
+      prevPoints.map((object) =>
         object.id === id
           ? {
               ...object,
@@ -127,60 +201,276 @@ const Grapher = () => {
     return Math.floor(Math.random() * coordinateSystem.x);
   }
 
-  const addObject = () => {
+  const addRandomObject = () => {
+    addObject(randomInt(), randomInt());
+  };
+
+  const addObject = (x: number, y: number) => {
+    console.log("adding object");
     const newObject = {
-      id: objectsCounter,
-      positions: { x: randomInt(), y: randomInt() },
+      id: pointsCounter,
+      positions: { x: x, y: y },
       styles: {
-        backgroundColor: objectsColor,
-        width: objectsWidth,
-        height: objectsWidth,
+        backgroundColor: pointsColor,
+        width: pointsWidth,
+        height: pointsWidth,
       },
     };
-    setObjectsCounter(objectsCounter + 1);
-    setObjects([...objects, newObject]);
+    setPointsCounter(pointsCounter + 1);
+    setPointsArray([...pointsArray, newObject]);
   };
 
   const deleteObject = (id) => {
-    const newObjects = objects.filter((object) => object.id !== id);
-    setObjects(newObjects);
+    const newPoints = pointsArray.filter((object) => object.id !== id);
+    setPointsArray(newPoints);
+    setClickedObject({ x: 0, y: 0 });
+  };
+
+  const handleClearPoints = () => {
+    setPointsCounter(1);
+    setPointsArray([]);
+  };
+
+  const equationSolver = (equation: string[]) => {
+    return 100;
+  };
+
+  const equationGrapher = (equation: string) => {
+    for (let i = 0; i < windowSize.width; i += 100) {
+      const x = i - coordinateSystem.x;
+      const y = equationSolver(equation.split("")) * i;
+      console.log(`equationSolver output for x=${x}:`, y); // Debug log
+      addObject(x, y);
+      console.log(`points after adding object for x=${x}:`, pointsArray); // Debug log
+    }
+  };
+
+  // const equationSolver = (equation: string[]) =>  {
+  //   const char = equation[0];
+  //   // if (char === "-") {
+  //   //   return -1 * equationSolver(equation.slice(1));
+  //   // } else
+
+  //   // final condition
+  //   if (!equation[1]) {
+  //     return char;
+  //   }
+  //   if (!char) {
+  //     return 1;
+  //   } else if (char.match(/\([a-z]\)/)) {   // check for independant variable
+
+  //     return function(x, y) {
+  //       if stringToOperator[equation[1]] {
+  //         return Number(char) * equationSolver(equation.slice(1));
+  //       }
+  //     }
+  //   } else if (typeof char.match(/d+/g)) {    // check for digit
+  //     if (equation[1] && stringToOperator[equation[1]]) {
+  //       return Number(char) * equationSolver(equation.slice(1));
+  //     }
+  //   }
+
+  //     return stringToOperator[equation[1]](
+  //       char,
+  //       equationSolver(equation.slice(2))
+  //     );
+  //   }
+  //   // return char;
+  // };
+  // console.log(equationSolver(["2x", "+", "3"]));
+
+  // const handleEquation = () => {
+  //   const listEquation = equation.split("=");
+  //   const leftSide = listEquation[0];
+  //   const rightSide = listEquation[1];
+  //   const independantVariable = leftSide
+  //     .match(/\([a-z]\/))
+  //     ?.toString()
+  //     .replace(/\(|\)/g, "");
+  //   const dependantVariable = leftSide.split("").map((char) => {});
+  //   console.log(independantVariable);
+  //   // console.log(listEquation)/;
+  //   // const independantVariable = leftSide.split('').forEach((char) => {
+
+  //   // if rightSide.indexOf("x") !== -1 {
+  //   //   return
+  //   // }
+  // };
+  const addLine = (x: number, y: number, angle: number) => {
+    const newLine = {
+      id: linesCounter,
+      positions: { x: x, y: y },
+      styles: {
+        backgroundColor: linesColor,
+        width: "100vh",
+        height: 2,
+        transform: `rotate(${angle}deg)`,
+      },
+    };
+    setLinesArray([...linesArray, newLine]);
+    setLinesCounter(linesCounter + 1);
+  };
+
+  const handleEquation = () => {
+    console.log("equation solver lol");
+    // all sorts of regex lol
+    console.log(equation);
+    const pointRegex = /^\(\d+\,\s\d+\)$/; // (2, 3)
+    const functionRegex = /^[a-z]\((x|y)\)=/; // f(x)=, g(y)=
+    const numberRegex = /^x=\d+|^y=\d+/; // x=2, y=3
+
+    if (equation.match(pointRegex)) {
+      const point = equation.replace(/\(|\)/g, "").split(",");
+      addObject(Number(point[0]), Number(point[1]));
+    } else if (equation.match(numberRegex)) {
+      console.log("number");
+      const independantVariable = equation.match(/x|y/)?.toString();
+      console.log(independantVariable);
+      if (independantVariable === "x") {
+        addLine(Number(equation.match(/\d+/)?.toString()), 0, 90);
+        // addLine(Number(equation.match(/\d+/)?.toString()), 0);
+      } else {
+        addLine(0, Number(equation.match(/\d+/)?.toString()), 0);
+        // addObject(0, Number(equation.match(/\d+/)?.toString()));
+        // addLine(0, Number(equation.match(/\d+/)?.toString()));
+      }
+    } else if (equation.match(functionRegex)) {
+      console.log("function");
+    }
+
+    const operatorRegex = /(\+|\-|\*|\/|\^)/;
+    const variableRegex = /(x|y)/;
+    const parenthesisRegex = /\(|\)/;
+    // const functionRegex = /(sin|cos|tan)/;
+    // console.log(equation.match(pointRegex));
+    // console.log(equation.match(numberRegex));
   };
 
   return (
     <>
       <div
         className="grapher-window"
-        onMouseMove={isMove ? handleMouseMove : undefined}
+        onMouseMove={isMove || isAddingObject ? handleMouseMove : undefined}
         onMouseUp={isMove ? handleMouseUp : undefined}
-        onMouseDown={isMove ? handleMouseDown : undefined}
+        onMouseDown={isMove || isAddingObject ? handleMouseDown : undefined}
         style={{ width: windowSize.width, height: windowSize.height }}
-        onClick={() => clickedObject != 0 && setClickedObject(0)}
       >
         <div>
-          {objects.map((object) => (
+          <div>
+            {/* render lines */}
+            {linesArray.map((object) => (
+              <div
+                key={`line-${object.id}`}
+                className="line"
+                style={{
+                  bottom:
+                    object.positions.y +
+                    coordinateSystem.y -
+                    (object.styles.height * 1.0) / 2 +
+                    1,
+                  left: object.positions.x + coordinateSystem.x,
+                  ...object.styles,
+                }}
+              ></div>
+            ))}
+          </div>
+          <div>
+            {/* render points */}
+            {pointsArray.map((object) => (
+              <div
+                onClick={() =>
+                  isDeleting
+                    ? deleteObject(object.id)
+                    : clickedObject !== object.positions
+                    ? setClickedObject(object.positions)
+                    : setClickedObject({ x: 0, y: 0 })
+                }
+                key={`point-${object.id}`}
+                className="point"
+                style={{
+                  bottom:
+                    object.positions.y +
+                    coordinateSystem.y -
+                    (object.styles.height * 1.0) / 2 +
+                    0.5,
+                  left:
+                    object.positions.x +
+                    coordinateSystem.x -
+                    (object.styles.width * 1.0) / 2 +
+                    0.5,
+                  // bottom:
+                  //   coordinateSystem.y +
+                  //   object.positions.y -
+                  //   (object.styles.height * 1.0) / 2 +
+                  //   0.5,
+                  // left:
+                  //   coordinateSystem.x +
+                  //   object.positions.x -
+                  //   (object.styles.width * 1.0) / 2 +
+                  //   0.5,
+                  ...object.styles,
+                }}
+              ></div>
+            ))}
+          </div>
+        </div>
+        {/* x-axis */}
+        <div className="axis x-axis" style={{ bottom: coordinateSystem.y }}>
+          {intervalsArray.map((interval, i) => (
             <div
-              onClick={() =>
-                isDeleting
-                  ? deleteObject(object.id)
-                  : setClickedObject(object.id)
-              }
-              key={object.id}
-              className="object"
+              key={`y-${i}`}
+              className="axis-interval"
               style={{
-                top:
-                  coordinateSystem.y +
-                  object.positions.y * scale -
-                  (object.styles.height * 1.0) / 2 +
-                  0.5,
-                left:
-                  coordinateSystem.x +
-                  object.positions.x * scale -
-                  (object.styles.width * 1.0) / 2 +
-                  0.5,
-                ...object.styles,
+                bottom: -3,
+                left: interval,
               }}
-            ></div>
+            >
+              <div className="interval-label">
+                {Number(interval - coordinateSystem.x).toFixed(2)}
+              </div>
+            </div>
           ))}
+          {/* object's x-axis intercept */}
+          {hasClickedObject && (
+            <div
+              className="intercept"
+              style={{
+                bottom: -2,
+                left: coordinateSystem.x + clickedObject.x - 2,
+              }}
+            >
+              <div className="interval-label">{clickedObject.x}</div>
+            </div>
+          )}
+        </div>
+        {/* y-axis */}
+        <div className="axis y-axis" style={{ left: coordinateSystem.x }}>
+          {intervalsArray.map((interval, i) => (
+            <div
+              key={`y-${i}`}
+              className="axis-interval"
+              style={{
+                left: -3,
+                bottom: interval,
+              }}
+            >
+              <div className="interval-label">
+                {Number(interval - coordinateSystem.y).toFixed(2)}
+              </div>
+            </div>
+          ))}
+          {/* object's y-axis intercept */}
+          {hasClickedObject && (
+            <div
+              className="intercept"
+              style={{
+                bottom: coordinateSystem.y + clickedObject.y - 2,
+                left: -2,
+              }}
+            >
+              <div className="interval-label">{clickedObject.y}</div>
+            </div>
+          )}
         </div>
         <div className="grapher-menu">
           <svg
@@ -225,13 +515,27 @@ const Grapher = () => {
             <path d="M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12zm6.32-1.094l3.58 3.58a1 1 0 1 1-1.415 1.413l-3.58-3.58a8 8 0 1 1 1.414-1.414zM5 7h6a1 1 0 0 1 0 2H5a1 1 0 1 1 0-2z"></path>
           </svg>
           <svg
-            id="objects-menu"
+            id="points-menu"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="-2 -1.5 24 24"
+            width="24"
+            fill="currentColor"
+            className={isPointsMenuOpen ? "active" : ""}
+            onClick={() => setIsPointsMenuOpen(!isPointsMenuOpen)}
+          >
+            <path d="M10 20.565c-5.523 0-10-4.477-10-10s4.477-10 10-10 10 4.477 10 10-4.477 10-10 10z"></path>
+          </svg>
+          <svg
+            id="add-object"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="-2 -2 24 24"
             width="24"
             fill="currentColor"
-            className={isObjectsMenuOpen ? "active" : ""}
-            onClick={() => setIsObjectsMenuOpen(!isObjectsMenuOpen)}
+            className={isAddingObject ? "active" : ""}
+            onClick={() => {
+              setIsAddingObject(!isAddingObject);
+              setIsMove(false);
+            }}
           >
             <path d="M4 2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4zm0-2h12a4 4 0 0 1 4 4v12a4 4 0 0 1-4 4H4a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4zm7 11v4a1 1 0 0 1-2 0v-4H5a1 1 0 0 1 0-2h4V5a1 1 0 1 1 2 0v4h4a1 1 0 0 1 0 2h-4z"></path>
           </svg>
@@ -247,6 +551,16 @@ const Grapher = () => {
             <path d="M6 2V1a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1h4a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2h-.133l-.68 10.2a3 3 0 0 1-2.993 2.8H5.826a3 3 0 0 1-2.993-2.796L2.137 7H2a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h4zm10 2H2v1h14V4zM4.141 7l.687 10.068a1 1 0 0 0 .998.932h6.368a1 1 0 0 0 .998-.934L13.862 7h-9.72zM7 8a1 1 0 0 1 1 1v7a1 1 0 0 1-2 0V9a1 1 0 0 1 1-1zm4 0a1 1 0 0 1 1 1v7a1 1 0 0 1-2 0V9a1 1 0 0 1 1-1z"></path>
           </svg>
           <svg
+            id="clear-points"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="-1.5 -2.5 24 24"
+            width="24"
+            fill="currentColor"
+            onClick={handleClearPoints}
+          >
+            <path d="M12.728 12.728L8.485 8.485l-5.657 5.657 2.122 2.121a3 3 0 0 0 4.242 0l3.536-3.535zM11.284 17H14a1 1 0 0 1 0 2H3a1 1 0 0 1-.133-1.991l-1.453-1.453a2 2 0 0 1 0-2.828L12.728 1.414a2 2 0 0 1 2.828 0L19.8 5.657a2 2 0 0 1 0 2.828L11.284 17z"></path>
+          </svg>
+          <svg
             id="axis-settings"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="-2 -2 24 24"
@@ -257,96 +571,30 @@ const Grapher = () => {
           >
             <path d="M14.95 7.879l-.707-.707a1 1 0 0 1 1.414-1.415l.707.707 1.414-1.414-2.828-2.828L2.222 14.95l2.828 2.828 1.414-1.414L5.05 14.95a1 1 0 0 1 1.414-1.414L7.88 14.95l1.414-1.414-.707-.708A1 1 0 0 1 10 11.414l.707.707 1.414-1.414-1.414-1.414a1 1 0 0 1 1.414-1.414l1.415 1.414 1.414-1.414zM.808 13.536L13.536.808a2 2 0 0 1 2.828 0l2.828 2.828a2 2 0 0 1 0 2.828L6.464 19.192a2 2 0 0 1-2.828 0L.808 16.364a2 2 0 0 1 0-2.828z"></path>
           </svg>
+          <svg
+            id="equation"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="-6 -6 24 24"
+            width="24"
+            fill="currentColor"
+            className={isEquationMenuOpen ? "active" : ""}
+            onClick={() => {
+              setIsEquationMenuOpen(!isEquationMenuOpen);
+            }}
+          >
+            <path d="M12,1 L12,3 C12,3.55228475 11.5522847,4 11,4 C10.4477153,4 10,3.55228475 10,3 L10,2 L7,2 L7,10 L8,10 C8.55228475,10 9,10.4477153 9,11 C9,11.5522847 8.55228475,12 8,12 L4,12 C3.44771525,12 3,11.5522847 3,11 C3,10.4477153 3.44771525,10 4,10 L5,10 L5,2 L2,2 L2,3 C2,3.55228475 1.55228475,4 1,4 C0.44771525,4 0,3.55228475 0,3 L0,1 C0,0.44771525 0.44771525,0 1,0 L11,0 C11.5522847,0 12,0.44771525 12,1 Z"></path>
+          </svg>
         </div>
-        <div className="axis x-axis" style={{ top: coordinateSystem.y }}>
-          {intervalsArray.map((interval, i) => (
-            <div
-              key={`y-${i}`}
-              className="axis-interval"
-              style={{
-                top: -3,
-                left: interval,
-              }}
-            >
-              <div className="x-axis-interval-label">
-                {Number(scale * (interval - coordinateSystem.x)).toFixed(2)}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="axis y-axis" style={{ left: coordinateSystem.x }}>
-          {intervalsArray.map((interval, i) => (
-            <div
-              key={`y-${i}`}
-              className="axis-interval"
-              style={{
-                left: -3,
-                top: interval,
-              }}
-            >
-              <div className="y-axis-interval-label">
-                {Number(scale * (interval - coordinateSystem.y)).toFixed(2)}
-              </div>
-            </div>
-          ))}
-        </div>
-        {clickedObject > 0 &&
-          objects.map((object) => {
-            return (
-              object.id === clickedObject && (
-                <>
-                  {/* x-intercept */}
-                  <div
-                    className="intercept"
-                    style={{
-                      left: coordinateSystem.x + object.positions.x * scale - 2,
-                      top: coordinateSystem.y - 2,
-                    }}
-                  >
-                    <div className="x-axis-interval-label">
-                      {Number(object.positions.x * scale).toFixed(2)}
-                    </div>
-                  </div>
-                  {/* y-intercept */}
-                  <div
-                    className="intercept"
-                    style={{
-                      top: coordinateSystem.y + object.positions.y * scale - 2,
-                      left: coordinateSystem.x - 2,
-                    }}
-                  >
-                    <div className="y-axis-interval-label">
-                      {Number(object.positions.y * scale).toFixed(2)}
-                    </div>
-                  </div>
-                </>
-              )
-            );
-          })}
-        {/* <div
-        className="axis-0"
-        style={{ top: coordinateSystem.y - 2, left: coordinateSystem.x - 2 }}
-      ></div> */}
       </div>
-      {isObjectsMenuOpen && (
-        <div className="menu-window">
-          <div className="menu-heading">
-            <div>Your objects</div>
-            <svg
-              className="close-menu-window"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="-6 -6 24 24"
-              width="24"
-              fill="currentColor"
-              onClick={() => setIsObjectsMenuOpen(false)}
-            >
-              <path d="M7.314 5.9l3.535-3.536A1 1 0 1 0 9.435.95L5.899 4.485 2.364.95A1 1 0 1 0 .95 2.364l3.535 3.535L.95 9.435a1 1 0 1 0 1.414 1.414l3.535-3.535 3.536 3.535a1 1 0 1 0 1.414-1.414L7.314 5.899z"></path>
-            </svg>
-          </div>
-          <div className="objects-list">
-            {objects.map((object) => (
+      {isPointsMenuOpen && (
+        <MenuWindow
+          heading="Your Points"
+          onCloseClick={() => setIsPointsMenuOpen(false)}
+        >
+          <div className="points-list">
+            {pointsArray.map((object) => (
               <>
-                <div className="objects-list-item">
+                <div className="points-list-item">
                   <div>
                     <div>ID:</div>
                     <div>COLOR:</div>
@@ -358,7 +606,7 @@ const Grapher = () => {
                     <input
                       type="color"
                       value={object.styles.backgroundColor}
-                      onChange={handleObjectsColor.bind(this, object.id)}
+                      onChange={handlePointsColor.bind(this, object.id)}
                       className="custom"
                     ></input>
                     <input
@@ -366,7 +614,7 @@ const Grapher = () => {
                       min="1"
                       max="100"
                       value={object.styles.width}
-                      onChange={handleObjectsWidth.bind(this, object.id)}
+                      onChange={handlePointsWidth.bind(this, object.id)}
                       className="custom"
                     ></input>
                     <div>
@@ -382,38 +630,46 @@ const Grapher = () => {
             viewBox="-4.5 -4.5 24 24"
             width="24"
             fill="currentColor"
-            onClick={addObject}
+            onClick={addRandomObject}
           >
             <path d="M8.9 6.9v-5a1 1 0 1 0-2 0v5h-5a1 1 0 1 0 0 2h5v5a1 1 0 1 0 2 0v-5h5a1 1 0 1 0 0-2h-5z"></path>
           </svg>
-        </div>
+        </MenuWindow>
       )}
       {isAxisSettingsMenuOpen && (
-        <div className="menu-window">
-          <div className="menu-heading">
-            <div>Axis settings</div>
-            <svg
-              className="close-menu-window"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="-6 -6 24 24"
-              width="24"
-              fill="currentColor"
-              onClick={() => setIsAxisSettingsMenuOpen(false)}
-            >
-              <path d="M7.314 5.9l3.535-3.536A1 1 0 1 0 9.435.95L5.899 4.485 2.364.95A1 1 0 1 0 .95 2.364l3.535 3.535L.95 9.435a1 1 0 1 0 1.414 1.414l3.535-3.535 3.536 3.535a1 1 0 1 0 1.414-1.414L7.314 5.899z"></path>
-            </svg>
-          </div>
-          <label htmlFor="#axis-intervals">Axis intervals</label>
+        <MenuWindow
+          heading="Axis settings"
+          onCloseClick={() => setIsAxisSettingsMenuOpen(false)}
+        >
+          <label htmlFor="#axis-intervals">Axis intervals</label>{" "}
           <input
             id="axis-intervals"
             type="number"
             value={axisIntervals}
             onChange={handleAxisIntervals}
             min="0"
+            className="custom"
           />
-        </div>
+        </MenuWindow>
       )}
-      <div className="grapher-settings"></div>
+      {isEquationMenuOpen && (
+        <MenuWindow
+          heading="Input equation"
+          onCloseClick={() => setIsEquationMenuOpen(false)}
+        >
+          <input
+            id="equation-input  "
+            type="text"
+            value={equation}
+            onChange={(event) => setEquation(event.target.value)}
+            min="0"
+            className="custom"
+          />
+          <div className="button" onClick={handleEquation}>
+            Graph
+          </div>
+        </MenuWindow>
+      )}
     </>
   );
 };
